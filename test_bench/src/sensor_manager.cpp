@@ -1,8 +1,5 @@
 #include "../include/sensor_manager.h"
-#include "../include/bt_manager.h"
-
-// External reference to the BtManager for sending messages
-extern BtManager* btManagerInstance;
+#include "../include/message_manager.h" // Add this include
 
 SensorManager::SensorManager() {
   sensor = new ultrasonic();
@@ -36,8 +33,8 @@ int SensorManager::getValidDistance() {
     // Use a non-blocking approach for multiple readings
     int reading = static_cast<int>(sensor->Ranging());
     
-    if (debugEnabled && btManagerInstance) {
-      btManagerInstance->sendMessageF("Debug - Reading attempt %d: %dcm", i+1, reading);
+    if (debugEnabled) {
+      MessageManager::sendF("Debug - Reading attempt %d: %dcm", i+1, reading);
     }
     
     // Check for valid readings
@@ -53,16 +50,14 @@ int SensorManager::getValidDistance() {
   if (validCount == 0) {
     consecutiveFailedReadings++;
     
-    if (debugEnabled && btManagerInstance) {
-      btManagerInstance->sendMessageF("Debug - No valid readings (%d consecutive failures). Check connections.", 
+    if (debugEnabled) {
+      MessageManager::sendF("Debug - No valid readings (%d consecutive failures). Check connections.", 
                                     consecutiveFailedReadings);
     }
     
     // If we have repeated failures, alert but use last known valid distance if available
     if (consecutiveFailedReadings >= 5) {
-      if (btManagerInstance) {
-        btManagerInstance->sendMessage("WARNING: Ultrasonic sensor may be disconnected or malfunctioning");
-      }
+      MessageManager::send("WARNING: Ultrasonic sensor may be disconnected or malfunctioning");
       
       // If we have a previous valid reading, use it with an added safety margin
       // otherwise return a default safe value
@@ -127,8 +122,8 @@ bool SensorManager::checkForObstacles(unsigned long currentTime) {
   lastDistance = getValidDistance();
   lastFullCheckTime = currentTime;
   
-  if (debugEnabled && btManagerInstance) {
-    btManagerInstance->sendMessageF("Debug - Current distance: %dcm", lastDistance);
+  if (debugEnabled) {
+    MessageManager::sendF("Debug - Current distance: %dcm", lastDistance);
   }
   
   // Return true if an obstacle is detected within range (defined in config.h)
@@ -137,8 +132,8 @@ bool SensorManager::checkForObstacles(unsigned long currentTime) {
 
 void SensorManager::setAvoidanceEnabled(bool enabled) {
   avoidanceEnabled = enabled;
-  if (debugEnabled && btManagerInstance) {
-    btManagerInstance->sendMessageF("Obstacle avoidance %s", enabled ? "enabled" : "disabled");
+  if (debugEnabled) {
+    MessageManager::sendF("Obstacle avoidance %s", enabled ? "enabled" : "disabled");
   }
 }
 
