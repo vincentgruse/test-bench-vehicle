@@ -39,6 +39,7 @@ This project implements a complete control system for a small robotic vehicle, f
 - LED status indicators for system feedback
 - Timed movements with non-blocking execution
 - Robust command parsing with shortcuts
+- Multiple communication interfaces (Bluetooth and Serial)
 
 ## Hardware Requirements
 
@@ -153,7 +154,9 @@ test_bench/
 │   ├── command_processor.h     # Command parsing and handling
 │   ├── led_manager.h           # LED status indicators
 │   ├── movement_controller.h   # Vehicle movement control
-│   └── sensor_manager.h        # Ultrasonic sensor management
+│   ├── sensor_manager.h        # Ultrasonic sensor management
+│   ├── serial_manager.h        # Serial communication
+│   └── message_manager.h       # Abstract message handling
 │
 └── src/                        # Implementation files
     ├── bt_manager.cpp
@@ -319,12 +322,13 @@ The SensorManager implements several reliability mechanisms:
 3. **Range validation**: Ignores readings outside valid distance range
 4. **Failure detection**: Tracks consecutive failed readings
 5. **Fallback values**: Returns safe values when sensor fails
+6. **Adaptive checking**: Adjusts sensor check frequency based on detected distance
 
 Debug mode (`debug on`) provides detailed information about sensor readings for troubleshooting.
 
 ## System Architecture
 
-The system is organized into five main modules that work together:
+The system is organized into the following modules:
 
 1. **CommandProcessor**: Handles command parsing and execution
    - Parses incoming commands in a case-insensitive manner
@@ -337,19 +341,28 @@ The system is organized into five main modules that work together:
    - Provides formatted message sending
    - Monitors connection state with timeout detection
 
-3. **MovementController**: Controls vehicle movement
+3. **SerialManager**: Manages USB Serial communication
+   - Provides alternative control interface via USB
+   - Mirrors the BtManager interface for consistency
+
+4. **MessageManager**: Abstract message handling
+   - Provides a common interface for all message types
+   - Simplifies switching between communication methods
+
+5. **MovementController**: Controls vehicle movement
    - Manages motor control via the vehicle library
    - Supports timed movements with non-blocking execution
    - Implements speed control with minimum/maximum constraints
    - Handles the obstacle avoidance state machine
 
-4. **SensorManager**: Manages the ultrasonic sensor
+6. **SensorManager**: Manages the ultrasonic sensor
    - Provides filtered, reliable distance readings
    - Implements obstacle detection logic
    - Supports debug mode for troubleshooting
    - Handles sensor failure gracefully
+   - Uses adaptive timing for efficient obstacle detection
 
-5. **LedManager**: Controls the status LEDs
+7. **LedManager**: Controls the status LEDs
    - Provides visual feedback on system state
    - Implements different blink patterns for each state
    - Manages connection status indication
@@ -393,16 +406,18 @@ The main loop in `test_bench.ino` orchestrates these modules with priority-based
 - The main loop prioritizes critical tasks for better responsiveness
 - Obstacle detection is optimized to reduce unnecessary processing
 - Sensor readings use filtering to improve reliability
+- Adaptive timing reduces sensor polling when not needed
 
 ## Development Notes
 
 For developers extending this codebase:
 
-- Use the `sendMessageF` method in BtManager for efficient string formatting
+- Use the `sendMessageF` method for efficient string formatting
 - Follow the state machine pattern for new non-blocking operations
 - Respect the main loop priorities when adding new features
 - Use the command parser for new commands
 - Implement new LED patterns using the existing framework
+- Leverage the abstracted communication architecture to add new interfaces
 
 ## Future Improvements
 

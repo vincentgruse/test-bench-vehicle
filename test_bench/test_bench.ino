@@ -1,29 +1,15 @@
 #include "include/config.h"
 #include "include/led_manager.h"
-#include "include/bt_manager.h"
 #include "include/sensor_manager.h"
 #include "include/movement_controller.h"
 #include "include/command_processor.h"
-
-// Check if Bluetooth is available
-#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
-#error Bluetooth is not enabled! Please run `make menuconfig` and enable it
-#endif
-
-// Check Serial Port Profile
-#if !defined(CONFIG_BT_SPP_ENABLED)
-#error Serial Port Profile for Bluetooth is not available or not enabled. It is only available for the ESP32 chip.
-#endif
+#include "include/message_manager.h"
 
 // Global instances of manager classes
 LedManager ledManager;
-BtManager* btManager;
 SensorManager sensorManager;
 MovementController* movementController;
 CommandProcessor* commandProcessor;
-
-// Make it available for movement controller messages
-BtManager* btManagerInstance;
 
 // Input buffer for commands
 String inputString = "";
@@ -39,15 +25,10 @@ void setup() {
   // Wait for serial to initialize
   delay(1000);
   
-  Serial.println("\n\nTest-bench Car Control System");
+  Serial.println("\n\nBCI-Controlled Test-bench Vehicle");
   
   // Initialize LED manager
   ledManager.init();
-  
-  // Initialize Bluetooth manager
-  btManager = new BtManager();
-  btManagerInstance = btManager; // Set the global instance reference
-  btManager->init(BT_DEVICE_NAME);
   
   // Initialize sensor manager
   sensorManager.init(ULTRASONIC_TRIG_PIN, ULTRASONIC_ECHO_PIN);
@@ -57,17 +38,17 @@ void setup() {
   movementController->init();
   
   // Initialize command processor
-  commandProcessor = new CommandProcessor(movementController, &sensorManager, btManager);
+  commandProcessor = new CommandProcessor(movementController, &sensorManager, nullptr);
   
   // Print system information and instructions
-  Serial.println("System ready - Pair with device: " + String(BT_DEVICE_NAME));
-  Serial.println("LEDs: Right = connection, Left = movement/obstacles");
+  MessageManager::send("System ready - Connected via USB Serial");
+  MessageManager::send("Left LED = movement/obstacles, Right LED = operational status");
   
   // Set initial watchdog time
   lastWatchdogTime = millis();
   
   // Print help info to the serial console
-  Serial.println("\nAvailable commands:");
+  MessageManager::send("\nAvailable commands:");
   commandProcessor->printHelpInfo();
 }
 
@@ -77,22 +58,16 @@ void loop() {
   // Handle string input
   static const int MAX_BUFFER_SIZE = 64;
   
-  // Update Bluetooth connection status
-  btManager->updateConnectionStatus(currentMillis);
-  
   // LED updates (important for user feedback)
   static unsigned long lastLedUpdate = 0;
   if (currentMillis - lastLedUpdate >= 20) {
     lastLedUpdate = currentMillis;
-    ledManager.updateStatus(currentMillis, btManager->isDeviceConnected());
+    ledManager.updateStatus(currentMillis, true); // Always show connected status
   }
   
   // Check for movement completion and avoidance maneuver updates
   movementController->checkTimedMovements(currentMillis);
   movementController->updateAvoidanceManeuver(currentMillis);
-  
-  // Process Bluetooth input
-  btManager->processBtInput(currentMillis, inputString);
   
   // Check buffer size and truncate if necessary
   if (inputString.length() > MAX_BUFFER_SIZE) {
@@ -108,12 +83,12 @@ void loop() {
       // Obstacle detected, stop and turn
       movementController->stop();
       movementController->cancelTimedMovement();
-      btManager->sendMessageF("Obstacle detected! %dcm", sensorManager.getValidDistance());
+      MessageManager::sendF("Obstacle detected! %dcm", sensorManager.getValidDistance());
       movementController->performAvoidanceManeuver();
     }
   }
   
-  // Process serial input
+  // Process serial input - this is now our primary way to receive commands
   if (Serial.available() > 0) {
     commandProcessor->processSerialInput(inputString);
   }
@@ -139,11 +114,7 @@ void loop() {
   if (currentMillis - lastWatchdogTime >= WATCHDOG_INTERVAL) {
     lastWatchdogTime = currentMillis;
     
-    // Send ping if connected
-    static unsigned long lastPingTime = 0;
-    if (btManager->isDeviceConnected() && (currentMillis - lastPingTime >= 60000)) {
-      lastPingTime = currentMillis;
-      btManager->sendPing();
-    }
+    // Send periodic status update
+    MessageManager::send("System running - ready for commands");
   }
 }

@@ -4,6 +4,8 @@
 #include "config.h"
 #include "../src/lib/vehicle/vehicle.h"
 #include "led_manager.h"
+#include "bt_manager.h"
+#include "serial_manager.h"
 
 // State machine for non-blocking avoidance maneuver
 enum AvoidanceState { 

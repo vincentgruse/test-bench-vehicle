@@ -1,8 +1,5 @@
 #include "../include/movement_controller.h"
-#include "../include/bt_manager.h"
-
-// External reference to the BtManager for sending messages
-extern BtManager* btManagerInstance;
+#include "../include/message_manager.h"
 
 MovementController::MovementController(LedManager* ledMgr) {
   car = new vehicle();
@@ -28,9 +25,7 @@ void MovementController::setSpeed(int speed) {
   
   currentSpeed = speed;
   
-  if (btManagerInstance) {
-    btManagerInstance->sendMessage("Speed set to " + String(currentSpeed));
-  }
+  MessageManager::send("Speed set to " + String(currentSpeed));
 }
 
 int MovementController::getSpeed() const {
@@ -53,13 +48,9 @@ void MovementController::moveForwardWithSpeed(int speed, int durationSeconds) {
   
   if (durationSeconds > 0) {
     timedMoveEnd = millis() + (durationSeconds * 1000);
-    if (btManagerInstance) {
-      btManagerInstance->sendMessage("Moving forward at speed " + String(speed) + " for " + String(durationSeconds) + " seconds");
-    }
+    MessageManager::send("Moving forward at speed " + String(speed) + " for " + String(durationSeconds) + " seconds");
   } else {
-    if (btManagerInstance) {
-      btManagerInstance->sendMessage("Moving forward at speed " + String(speed));
-    }
+    MessageManager::send("Moving forward at speed " + String(speed));
   }
 }
 
@@ -69,13 +60,9 @@ void MovementController::moveBackwardWithSpeed(int speed, int durationSeconds) {
   
   if (durationSeconds > 0) {
     timedMoveEnd = millis() + (durationSeconds * 1000);
-    if (btManagerInstance) {
-      btManagerInstance->sendMessage("Moving backward at speed " + String(speed) + " for " + String(durationSeconds) + " seconds");
-    }
+    MessageManager::send("Moving backward at speed " + String(speed) + " for " + String(durationSeconds) + " seconds");
   } else {
-    if (btManagerInstance) {
-      btManagerInstance->sendMessage("Moving backward at speed " + String(speed));
-    }
+    MessageManager::send("Moving backward at speed " + String(speed));
   }
 }
 
@@ -84,16 +71,12 @@ void MovementController::stop() {
   ledManager->setLeftLedStatus(LED_IDLE);
   timedMoveEnd = 0;
   
-  if (btManagerInstance) {
-    btManagerInstance->sendMessage("Stopping");
-  }
+  MessageManager::send("Stopping");
 }
 
 void MovementController::turnByDegrees(int degrees) {
   // Positive degrees for right turn, negative for left
-  if (btManagerInstance) {
-    btManagerInstance->sendMessage("Turning " + String(abs(degrees)) + " degrees " + (degrees > 0 ? "right" : "left"));
-  }
+  MessageManager::send("Turning " + String(abs(degrees)) + " degrees " + (degrees > 0 ? "right" : "left"));
   
   ledManager->setLeftLedStatus(LED_TURNING);
   
@@ -106,21 +89,17 @@ void MovementController::turnByDegrees(int degrees) {
   } else if (degrees < 0) {
     car->Move(Contrarotate, TURN_SPEED);
   } else {
-    if (btManagerInstance) {
-      btManagerInstance->sendMessage("No turn needed (0 degrees)");
-    }
+    MessageManager::send("No turn needed (0 degrees)");
     return;
   }
   
   // IMPORTANT: Using blocking delay for precise turning
   // Calculate delay time based on degrees
-  // Using 1500ms for 90 degrees
-  int delayTime = abs(degrees) * 1500 / 90;
+  // Using 1250ms for 90 degrees
+  int delayTime = abs(degrees) * 1250 / 90;
   
   // Debug message to verify calculation
-  if (btManagerInstance) {
-    btManagerInstance->sendMessageF("Turn time: %d ms for %d degrees", delayTime, abs(degrees));
-  }
+  MessageManager::sendF("Turn time: %d ms for %d degrees", delayTime, abs(degrees));
   
   // Use blocking delay for precise timing
   delay(delayTime);
@@ -129,9 +108,7 @@ void MovementController::turnByDegrees(int degrees) {
   car->Move(Stop, 0);
   ledManager->setLeftLedStatus(LED_IDLE);
   
-  if (btManagerInstance) {
-    btManagerInstance->sendMessage("Turn complete");
-  }
+  MessageManager::send("Turn complete");
 }
 
 void MovementController::performAvoidanceManeuver() {
@@ -143,9 +120,7 @@ void MovementController::performAvoidanceManeuver() {
   car->Move(Backward, 150);
   stateChangeTime = millis() + 500; // Back up for 500ms
   
-  if (btManagerInstance) {
-    btManagerInstance->sendMessage("Starting avoidance maneuver");
-  }
+  MessageManager::send("Starting avoidance maneuver");
 }
 
 void MovementController::updateAvoidanceManeuver(unsigned long currentTime) {
@@ -168,9 +143,7 @@ void MovementController::updateAvoidanceManeuver(unsigned long currentTime) {
         avoidanceState = AVOID_IDLE;
         ledManager->setLeftLedStatus(LED_IDLE);
         
-        if (btManagerInstance) {
-          btManagerInstance->sendMessage("Avoidance maneuver complete");
-        }
+        MessageManager::send("Avoidance maneuver complete");
         break;
         
       default:
@@ -183,9 +156,7 @@ void MovementController::updateAvoidanceManeuver(unsigned long currentTime) {
 void MovementController::checkTimedMovements(unsigned long currentTime) {
   if (timedMoveEnd > 0 && currentTime >= timedMoveEnd) {
     car->Move(Stop, 0);
-    if (btManagerInstance) {
-      btManagerInstance->sendMessage("Timed movement complete");
-    }
+    MessageManager::send("Timed movement complete");
     timedMoveEnd = 0;
     ledManager->setLeftLedStatus(LED_IDLE);
   }
