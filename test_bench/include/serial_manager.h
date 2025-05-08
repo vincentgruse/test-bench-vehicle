@@ -11,7 +11,17 @@ class SerialManager {
   public:
     // Constructor
     SerialManager() {
-      isConnected = true;  // USB Serial is always "connected" when powered
+      isConnected = checkConnection();  // Initialize with actual status
+    }
+    
+    // Check if USB Serial is actually connected
+    bool checkConnection() {
+      return Serial;  // On ESP32, Serial evaluates to true if connected to a host
+    }
+    
+    // Update connection status
+    void updateConnectionStatus() {
+      isConnected = checkConnection();
     }
     
     // Send message via Serial
@@ -30,7 +40,7 @@ class SerialManager {
       Serial.println(buffer);
     }
     
-    // Always return true for isDeviceConnected since it's a USB connection
+    // Return actual USB connection status
     bool isDeviceConnected() const {
       return isConnected;
     }

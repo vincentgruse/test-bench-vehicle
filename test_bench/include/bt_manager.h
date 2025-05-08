@@ -9,6 +9,7 @@ class BtManager {
     BluetoothSerial serialBT;
     String deviceName;
     bool isConnected;
+    bool isEnabled;
     unsigned long lastActivityTime;
     
   public:
@@ -17,6 +18,9 @@ class BtManager {
     
     // Initialize Bluetooth with device name
     void init(const String& name);
+    
+    // End Bluetooth connection
+    void end();
     
     // Process incoming BT data
     void processBtInput(unsigned long currentTime, String& inputBuffer);
@@ -32,6 +36,9 @@ class BtManager {
     
     // Get connection status
     bool isDeviceConnected() const;
+    
+    // Check if Bluetooth is currently enabled
+    bool isBtEnabled() const;
     
     // Get time of last activity
     unsigned long getLastActivityTime() const;

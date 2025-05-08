@@ -117,7 +117,12 @@ void CommandProcessor::processCommand(const String& command) {
   String cmd = command;
   cmd.trim();
   
-  MessageManager::send("Command received: " + cmd);
+  // Use the appropriate messaging method based on where the command came from
+  if (btMgr != nullptr && btMgr->isDeviceConnected()) {
+    btMgr->sendMessage("Command received: " + cmd);
+  } else {
+    MessageManager::send("Command received: " + cmd);
+  }
   
   ParsedCommand parsed = parseCommand(cmd);
   
@@ -164,69 +169,84 @@ void CommandProcessor::processCommand(const String& command) {
       if (parsed.param1 > 0) {
         movementCtrl->setSpeed(parsed.param1);
       } else {
-        MessageManager::send("Invalid speed value. Please specify a positive number.");
+        sendResponse("Invalid speed value. Please specify a positive number.");
       }
       break;
       
     case CMD_DISTANCE:
       {
         int validDistance = sensorMgr->getValidDistance();
-        MessageManager::send("Current distance: " + String(validDistance) + " cm");
+        sendResponse("Current distance: " + String(validDistance) + " cm");
       }
       break;
       
     case CMD_AVOID:
       sensorMgr->setAvoidanceEnabled(parsed.flagValue);
-      MessageManager::send("Obstacle avoidance " + String(parsed.flagValue ? "enabled" : "disabled"));
+      sendResponse("Obstacle avoidance " + String(parsed.flagValue ? "enabled" : "disabled"));
       break;
       
     case CMD_DEBUG:
       sensorMgr->setDebugEnabled(parsed.flagValue);
-      MessageManager::send("Debug mode " + String(parsed.flagValue ? "enabled" : "disabled"));
+      sendResponse("Debug mode " + String(parsed.flagValue ? "enabled" : "disabled"));
       break;
       
     case CMD_PING:
-      MessageManager::send("pong");
+      sendResponse("pong");
       break;
       
     case CMD_STATUS:
-      MessageManager::send("Connection: " + String(MessageManager::isConnected() ? "Connected" : "Disconnected"));
-      MessageManager::send("Current speed: " + String(movementCtrl->getSpeed()));
-      MessageManager::send("Obstacle avoidance: " + String(sensorMgr->isAvoidanceEnabled() ? "Enabled" : "Disabled"));
-      MessageManager::send("Debug mode: " + String(sensorMgr->isDebugEnabled() ? "Enabled" : "Disabled"));
+      // Send different status messages depending on connection type
+      if (btMgr != nullptr && btMgr->isDeviceConnected()) {
+        btMgr->sendMessage("Connection: Bluetooth");
+      } else {
+        MessageManager::send("Connection: USB Serial");
+      }
+      
+      sendResponse("Current speed: " + String(movementCtrl->getSpeed()));
+      sendResponse("Obstacle avoidance: " + String(sensorMgr->isAvoidanceEnabled() ? "Enabled" : "Disabled"));
+      sendResponse("Debug mode: " + String(sensorMgr->isDebugEnabled() ? "Enabled" : "Disabled"));
       break;
       
     default:
-      MessageManager::send("Unknown command. Type 'help' for available commands.");
+      sendResponse("Unknown command. Type 'help' for available commands.");
       break;
   }
 }
 
+// Helper method to send responses through the appropriate channel
+void CommandProcessor::sendResponse(const String& message) {
+  if (btMgr != nullptr && btMgr->isDeviceConnected()) {
+    btMgr->sendMessage(message);
+  } else {
+    MessageManager::send(message);
+  }
+}
+
 void CommandProcessor::printHelpInfo() {
-  MessageManager::send("Test-bench Car Control Commands:");
-  MessageManager::send("---------------------------");
-  MessageManager::send("Speed Control:");
-  MessageManager::send("  speed [value]: Set global speed (50-255)");
-  MessageManager::send("");
-  MessageManager::send("Movement Commands:");
-  MessageManager::send("  forward/f: Move forward at current speed");
-  MessageManager::send("  forward/f [seconds]: Move forward for specified seconds at current speed");
-  MessageManager::send("  forward/f [speed] [seconds]: Move forward at specific speed for specified seconds");
-  MessageManager::send("  backward/b: Move backward at current speed");
-  MessageManager::send("  backward/b [seconds]: Move backward for specified seconds at current speed");
-  MessageManager::send("  backward/b [speed] [seconds]: Move backward at specific speed for specified seconds");
-  MessageManager::send("  stop/s: Stop movement");
-  MessageManager::send("  turn X: Turn by X degrees (positive for right, negative for left)");
-  MessageManager::send("");
-  MessageManager::send("Sensor Commands:");
-  MessageManager::send("  distance: Report current distance from ultrasonic sensor");
-  MessageManager::send("  avoid on/off: Enable/disable obstacle avoidance");
-  MessageManager::send("  debug on/off: Enable/disable sensor debugging information");
-  MessageManager::send("");
-  MessageManager::send("Other Commands:");
-  MessageManager::send("  help: Show this help information");
-  MessageManager::send("  ping: Simple connectivity test");
-  MessageManager::send("  status: Show current system status (includes speed)");
+  sendResponse("Test-bench Car Control Commands:");
+  sendResponse("---------------------------");
+  sendResponse("Speed Control:");
+  sendResponse("  speed [value]: Set global speed (50-255)");
+  sendResponse("");
+  sendResponse("Movement Commands:");
+  sendResponse("  forward/f: Move forward at current speed");
+  sendResponse("  forward/f [seconds]: Move forward for specified seconds at current speed");
+  sendResponse("  forward/f [speed] [seconds]: Move forward at specific speed for specified seconds");
+  sendResponse("  backward/b: Move backward at current speed");
+  sendResponse("  backward/b [seconds]: Move backward for specified seconds at current speed");
+  sendResponse("  backward/b [speed] [seconds]: Move backward at specific speed for specified seconds");
+  sendResponse("  stop/s: Stop movement");
+  sendResponse("  turn X: Turn by X degrees (positive for right, negative for left)");
+  sendResponse("");
+  sendResponse("Sensor Commands:");
+  sendResponse("  distance: Report current distance from ultrasonic sensor");
+  sendResponse("  avoid on/off: Enable/disable obstacle avoidance");
+  sendResponse("  debug on/off: Enable/disable sensor debugging information");
+  sendResponse("");
+  sendResponse("Other Commands:");
+  sendResponse("  help: Show this help information");
+  sendResponse("  ping: Simple connectivity test");
+  sendResponse("  status: Show current system status (includes speed)");
 }
 
 void CommandProcessor::processSerialInput(String& inputBuffer) {

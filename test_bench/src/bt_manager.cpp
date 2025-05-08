@@ -3,6 +3,7 @@
 
 BtManager::BtManager() {
   isConnected = false;
+  isEnabled = false;
   lastActivityTime = 0;
 }
 
@@ -16,9 +17,24 @@ void BtManager::init(const String& name) {
   serialBT.deleteAllBondedDevices();
   
   Serial.printf("Bluetooth device \"%s\" started\n", deviceName.c_str());
+  isEnabled = true;
+}
+
+void BtManager::end() {
+  if (isEnabled) {
+    serialBT.end();
+    isEnabled = false;
+    isConnected = false;
+    Serial.println("Bluetooth service stopped");
+  }
 }
 
 void BtManager::processBtInput(unsigned long currentTime, String& inputBuffer) {
+  // Only process BT if it's enabled
+  if (!isEnabled) {
+    return;
+  }
+  
   // Check if there's any BT data available
   if (serialBT.available()) {
     // Activity detected - update connection status
@@ -37,8 +53,8 @@ void BtManager::sendMessage(const String& message) {
   // Send to serial console with prefix
   Serial.println("[BT] " + message);
   
-  // Send to Bluetooth if we think we're connected
-  if (isConnected) {
+  // Send to Bluetooth if we think we're connected and BT is enabled
+  if (isConnected && isEnabled) {
     serialBT.println(message);
     lastActivityTime = millis();
   }
@@ -55,14 +71,20 @@ void BtManager::sendMessageF(const char* format, ...) {
   Serial.print("[BT] ");
   Serial.println(buffer);
   
-  // Send to Bluetooth if connected
-  if (isConnected) {
+  // Send to Bluetooth if connected and enabled
+  if (isConnected && isEnabled) {
     serialBT.println(buffer);
     lastActivityTime = millis();
   }
 }
 
 void BtManager::updateConnectionStatus(unsigned long currentTime) {
+  // Only check connection if BT is enabled
+  if (!isEnabled) {
+    isConnected = false;
+    return;
+  }
+  
   // Check for timeout
   if (isConnected && (currentTime - lastActivityTime > BT_TIMEOUT)) {
     isConnected = false;
@@ -70,7 +92,11 @@ void BtManager::updateConnectionStatus(unsigned long currentTime) {
 }
 
 bool BtManager::isDeviceConnected() const {
-  return isConnected;
+  return isConnected && isEnabled;
+}
+
+bool BtManager::isBtEnabled() const {
+  return isEnabled;
 }
 
 unsigned long BtManager::getLastActivityTime() const {
@@ -78,7 +104,7 @@ unsigned long BtManager::getLastActivityTime() const {
 }
 
 void BtManager::sendPing() {
-  if (isConnected) {
+  if (isConnected && isEnabled) {
     serialBT.println("ping");
   }
 }

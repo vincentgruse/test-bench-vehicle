@@ -39,6 +39,9 @@ class CommandProcessor {
     // Parse a command string into a more usable structure
     ParsedCommand parseCommand(const String& cmd);
     
+    // Helper method to send responses through the appropriate channel
+    void sendResponse(const String& message);
+    
   public:
     CommandProcessor(MovementController* moveCtrl, SensorManager* sensMgr, BtManager* bluetoothMgr);
     
